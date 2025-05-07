@@ -282,38 +282,191 @@ BxTimelineView.prototype.initInfiniteScroll = function(oParent)
     });
 };
 
-BxTimelineView.prototype.initVideosAutoplay = function(oParent)
-{
+/**
+ * Initialize iframe players and enforce single-session playback: only one video plays at a time.
+ * Ensures that before any video plays, all others are paused.
+ */
+BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
     var $this = this;
-
-    if(this._sVideosAutoplay == 'off')
+    if (this._sVideosAutoplay === 'off')
         return;
 
+    // Preserve original initialization
     this.initVideos(oParent);
+    var sPrefix = oParent.hasClass(this.sClassView)
+        ? oParent.attr('id')
+        : oParent.parents('.' + this.sClassView + ':first').attr('id');
 
-    var sPrefix = oParent.hasClass(this.sClassView) ? oParent.attr('id') : oParent.parents('.' + this.sClassView + ':first').attr('id');
-
-    oParent.find('iframe').each(function() {
-        var sPlayer = sPrefix + '_' + $(this).attr('id');
-        if(window.glBxTimelineVapPlayers[sPlayer])
+    // Register each iframe player once
+    oParent.find('iframe[id]').each(function() {
+        var frame = this;
+        var key = sPrefix + '_' + frame.id;
+        if (window.glBxTimelineVapPlayers[key])
             return;
 
-        var oPlayer = new playerjs.Player(this);
-        if($this._sVideosAutoplay == 'on_mute')
-            oPlayer.mute();
+        var player = new playerjs.Player(frame);
+        if ($this._sVideosAutoplay === 'on_mute')
+            player.mute();
 
-        var fFixHeight = function () {
-            $('#' + sPlayer).height(($('#' + sPlayer).contents().find('video').height()) + 'px');
+        // Sync container height on ready/play
+        var fFixHeight = function() {
+            var video = $('#' + key).contents().find('video');
+            if (video.length)
+                $('#' + key).height(video.height() + 'px');
         };
-        oPlayer.on('ready', fFixHeight);
-        oPlayer.on('play', fFixHeight);
+        player.on('ready', fFixHeight);
+        player.on('play', fFixHeight);
 
-        window.glBxTimelineVapPlayers[sPlayer] = oPlayer;
+        // When this player starts, pause all others
+        player.on('play', function() {
+            for (var k in window.glBxTimelineVapPlayers) {
+                if (k !== key) {
+                    try {
+                        window.glBxTimelineVapPlayers[k].pause();
+                    } catch (e) {
+                        // ignore
+                    }
+                }
+            }
+        });
+
+        window.glBxTimelineVapPlayers[key] = player;
+    });
+
+    // Reset current session tracking
+    this._sCurrentPlayerKey = null;
+
+    // Bind original scroll autoplay
+    $(window).off('scroll.timelineVap').on('scroll.timelineVap', function() {
+        if (!$this.oView.is(':visible'))
+            return;
+        if (!window.requestAnimationFrame) {
+            setTimeout(function() {
+                $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
+            }, 100);
+        } else {
+            window.requestAnimationFrame(function() {
+                $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
+            });
+        }
     });
 };
 
-BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetStop)
-{
+/**
+ * Autoplay the single most visible video on scroll: pause the previous and play the new one.
+ */
+BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetStop) {
+    var sPrefix = oView.attr('id') + '_';
+    var winTop = $(window).scrollTop();
+    var winH = $(window).height();
+    var bestKey = null;
+    var bestRatio = 0;
+
+    oView.find('.' + this.sClassItem + ' iframe[id]').each(function() {
+        var $f = $(this);
+        var top = $f.offset().top;
+        var bottom = top + $f.height();
+        var visTop = Math.max(top, winTop);
+        var visBottom = Math.min(bottom, winTop + winH);
+        var ratio = Math.max(0, visBottom - visTop) / $f.height();
+        var key = sPrefix + this.id;
+        if (ratio > bestRatio) {
+            bestRatio = ratio;
+            bestKey = key;
+        }
+    });
+
+    // If a new best: pause old, play new
+    if (bestKey !== this._sCurrentPlayerKey) {
+        if (this._sCurrentPlayerKey && window.glBxTimelineVapPlayers[this._sCurrentPlayerKey]) {
+            try {
+                window.glBxTimelineVapPlayers[this._sCurrentPlayerKey].pause();
+            } catch (e) {
+                // ignore
+            }
+        }
+        if (bestKey && window.glBxTimelineVapPlayers[bestKey]) {
+            try {
+                window.glBxTimelineVapPlayers[bestKey].play();
+            } catch (e) {
+                // ignore
+            }
+        }
+        this._sCurrentPlayerKey = bestKey;
+    }
+};
+
+/**
+ * Manually trigger autoplay logic.
+ */
+BxTimelineView.prototype.playVideos = function(oView) {
+    if (this._sVideosAutoplay === 'off')
+        return;
+    this.autoplayVideos(oView, this._fVapOffsetStart, this._fVapOffsetStop);
+};
+
+/**
+ * Immediately pause all videos and reset the current key.
+ */
+BxTimelineView.prototype.pauseVideos = function(oView) {
+    for (var k in window.glBxTimelineVapPlayers) {
+        try {
+            window.glBxTimelineVapPlayers[k].pause();
+        } catch (e) {
+            // ignore
+        }
+    }
+    this._sCurrentPlayerKey = null;
+};
+
+BxTimelineView.prototype._initCentralVideoObserver = function(aVideoElements) {
+    var $this = this;
+    var oCurrentlyPlaying = null;
+
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            var oVideoElement = entry.target;
+            var sVideoId = oVideoElement.getAttribute('data-bx-timeline-video-id');
+            var oVideoData = aVideoElements.find(function(v) {
+                return v.id === sVideoId;
+            });
+
+            if (oVideoData) {
+                if (entry.isIntersecting) {
+                    if (oCurrentlyPlaying && oCurrentlyPlaying.id!== oVideoData.id) {
+                        oCurrentlyPlaying.player.pause();
+                    }
+                    oVideoData.player.play();
+                    oCurrentlyPlaying = oVideoData;
+                    // Sound autoplay is often restricted by browsers.
+                    // Consider if you need to unmute based on user interaction.
+                    if ($this._sVideosAutoplay == 'on') {
+                        oVideoData.player.unmute();
+                    } else if ($this._sVideosAutoplay == 'on_mute') {
+                        oVideoData.player.mute();
+                    }
+                } else {
+                    if (oCurrentlyPlaying && oCurrentlyPlaying.id === sVideoId) {
+                        oCurrentlyPlaying.player.pause();
+                        oCurrentlyPlaying = null;
+                    }
+                }
+            }
+        });
+    }, {
+        rootMargin: '-50% 0px -50% 0px', // Observe when the top or bottom edge enters the center
+        threshold: 0
+    });
+
+    aVideoElements.forEach(function(oVideo) {
+        observer.observe(oVideo.element);
+    });
+};
+
+/**
+ * Fallback scroll-based autoplay: preserves original behavior.
+ */
+BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetStop) {
     var $this = this;
 
     var oItems = oView.find('.' + this.sClassItem);
@@ -322,57 +475,99 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
     oItems.each(function() {
         $(this).find('iframe').each(function() {
             var oFrame = $(this);
-            var oPlayer = window.glBxTimelineVapPlayers[sPrefix + oFrame.attr('id')];
-            if(!oPlayer)
+            var sPlayerId = sPrefix + oFrame.attr('id');
+            var oPlayer = window.glBxTimelineVapPlayers[sPlayerId];
+            if (!oPlayer) {
                 return;
+            }
 
             var iFrameTop = oFrame.offset().top;
             var iFrameBottom = iFrameTop + oFrame.height();
             var iWindowTop = $(window).scrollTop();
             var iWindowHeight = $(window).height();
-            if(iFrameTop <= iWindowTop + iWindowHeight * fOffsetStart && iFrameBottom >= iWindowTop + iWindowHeight * fOffsetStop)
+            if (iFrameTop <= iWindowTop + iWindowHeight * fOffsetStart && iFrameBottom >= iWindowTop + iWindowHeight * fOffsetStop) {
                 oPlayer.play();
-            else
+            } else {
                 oPlayer.pause();
+            }
         });
     });
 };
 
-BxTimelineView.prototype.playVideos = function(oView)
-{
+/**
+ * Manually trigger central-selection playback.
+ */
+BxTimelineView.prototype.playVideos = function(oView) {
     var $this = this;
-
-    var oItems = oView.find('.' + this.sClassItem);
     var sPrefix = oView.attr('id') + '_';
+    var oCentralVideo = this._getCentralVideoInView(oView);
 
-    oItems.each(function() {
-        $(this).find('iframe').each(function() {
-            var oFrame = $(this);
-            var oPlayer = window.glBxTimelineVapPlayers[sPrefix + oFrame.attr('id')];
-            if(!oPlayer)
-                return;
-
-            oPlayer.play();
-        });
-    });
-};
-
-BxTimelineView.prototype.pauseVideos = function(oView)
-{
-    var $this = this;
-
-    var oItems = oView.find('.' + this.sClassItem);
-    var sPrefix = oView.attr('id') + '_';
-
-    oItems.each(function() {
-        $(this).find('iframe').each(function() {
-            var oFrame = $(this);
-            var oPlayer = window.glBxTimelineVapPlayers[sPrefix + oFrame.attr('id')];
-            if(!oPlayer)
-                return;
-
+    oView.find('iframe').each(function() {
+        var $iframe = $(this);
+        var sPlayerId = sPrefix + $iframe.attr('id');
+        var oPlayer = window.glBxTimelineVapPlayers[sPlayerId];
+        if (oPlayer) {
             oPlayer.pause();
-        });
+        }
+    });
+
+    if (oCentralVideo && oCentralVideo.player) {
+        oCentralVideo.player.play();
+        if ($this._sVideosAutoplay == 'on') {
+            oCentralVideo.player.unmute();
+        } else if ($this._sVideosAutoplay == 'on_mute') {
+            oCentralVideo.player.mute();
+        }
+    }
+};
+
+BxTimelineView.prototype._getCentralVideoInView = function(oView) {
+    var $this = this;
+    var oCentralVideo = null;
+    var iViewportHeight = $(window).height();
+    var iCenterViewport = iViewportHeight / 2;
+    var iMinOffset = Infinity;
+    var sPrefix = oView.attr('id') + '_';
+
+    oView.find('iframe').each(function() {
+        var $iframe = $(this);
+        var sPlayerId = sPrefix + $iframe.attr('id');
+        var oPlayer = window.glBxTimelineVapPlayers[sPlayerId];
+        if (!oPlayer) {
+            return;
+        }
+
+        var iVideoTop = $iframe.offset().top;
+        var iVideoHeight = $iframe.height();
+        var iVideoCenter = iVideoTop + (iVideoHeight / 2);
+        var iOffset = Math.abs(iVideoCenter - iCenterViewport);
+
+        if (iOffset < iMinOffset) {
+            iMinOffset = iOffset;
+            oCentralVideo = {
+                id: sPlayerId,
+                player: oPlayer
+            };
+        }
+    });
+    return oCentralVideo;
+};
+
+/**
+ * Immediately pause & mute all videos.
+ */
+BxTimelineView.prototype.pauseVideos = function(oView) {
+    var $this = this;
+    var sPrefix = oView.attr('id') + '_';
+
+    oView.find('iframe').each(function() {
+        var $iframe = $(this);
+        var sPlayerId = sPrefix + $iframe.attr('id');
+        var oPlayer = window.glBxTimelineVapPlayers[sPlayerId];
+        if (oPlayer) {
+            oPlayer.pause();
+            oPlayer.mute();
+        }
     });
 };
 
