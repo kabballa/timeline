@@ -353,7 +353,7 @@ BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
 };
 
 /**
- * Autoplay the single most visible video on scroll: pause the previous and play the new one.
+ * Autoplay the single most visible video on scroll: pause all others before playing the new one.
  */
 BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetStop) {
     var sPrefix = oView.attr('id') + '_';
@@ -376,15 +376,19 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
         }
     });
 
-    // If a new best: pause old, play new
-    if (bestKey !== this._sCurrentPlayerKey) {
-        if (this._sCurrentPlayerKey && window.glBxTimelineVapPlayers[this._sCurrentPlayerKey]) {
+    // Pause all players before playing the new one
+    for (var k in window.glBxTimelineVapPlayers) {
+        if (k !== bestKey) {
             try {
-                window.glBxTimelineVapPlayers[this._sCurrentPlayerKey].pause();
+                window.glBxTimelineVapPlayers[k].pause();
             } catch (e) {
                 // ignore
             }
         }
+    }
+
+    // Play the best visible video if it's different from the current
+    if (bestKey !== this._sCurrentPlayerKey) {
         if (bestKey && window.glBxTimelineVapPlayers[bestKey]) {
             try {
                 window.glBxTimelineVapPlayers[bestKey].play();
