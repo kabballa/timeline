@@ -288,31 +288,34 @@ BxTimelineView.prototype.initInfiniteScroll = function(oParent)
  */
 BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
     var $this = this;
-    if (this._sVideosAutoplay === 'off')
-        return;
+    if (this._sVideosAutoplay === 'off') return;
 
     // Preserve original initialization
     this.initVideos(oParent);
+
     var sPrefix = oParent.hasClass(this.sClassView)
         ? oParent.attr('id')
         : oParent.parents('.' + this.sClassView + ':first').attr('id');
 
-    // Register each iframe player once
+    // Register each iframe player once, without deleting existing references
     oParent.find('iframe[id]').each(function() {
         var frame = this;
         var key = sPrefix + '_' + frame.id;
-        if (window.glBxTimelineVapPlayers[key])
-            return;
 
+        // If the player already exists, skip reinitialization
+        if (window.glBxTimelineVapPlayers[key]) {
+            console.log(`Player ${key} already exists. Skipping reinitialization.`);
+            return;
+        }
+
+        // Initialize the new player
         var player = new playerjs.Player(frame);
-        if ($this._sVideosAutoplay === 'on_mute')
-            player.mute();
+        if ($this._sVideosAutoplay === 'on_mute') player.mute();
 
         // Sync container height on ready/play
         var fFixHeight = function() {
             var video = $('#' + key).contents().find('video');
-            if (video.length)
-                $('#' + key).height(video.height() + 'px');
+            if (video.length) $('#' + key).height(video.height() + 'px');
         };
         player.on('ready', fFixHeight);
         player.on('play', fFixHeight);
@@ -324,12 +327,13 @@ BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
                     try {
                         window.glBxTimelineVapPlayers[k].pause();
                     } catch (e) {
-                        // ignore
+                        console.warn(`Unable to pause player ${k}`, e);
                     }
                 }
             }
         });
 
+        // Save the new player
         window.glBxTimelineVapPlayers[key] = player;
     });
 
@@ -338,8 +342,7 @@ BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
 
     // Bind original scroll autoplay
     $(window).off('scroll.timelineVap').on('scroll.timelineVap', function() {
-        if (!$this.oView.is(':visible'))
-            return;
+        if (!$this.oView.is(':visible')) return;
         if (!window.requestAnimationFrame) {
             setTimeout(function() {
                 $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
@@ -349,6 +352,11 @@ BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
                 $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
             });
         }
+    });
+
+    // Trigger autoplay immediately on page load
+    window.requestAnimationFrame(function() {
+        $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
     });
 };
 
