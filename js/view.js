@@ -288,6 +288,7 @@ BxTimelineView.prototype.initInfiniteScroll = function(oParent)
  */
 BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
     var $this = this;
+
     if (this._sVideosAutoplay === 'off') return;
 
     // Preserve original initialization
@@ -341,18 +342,20 @@ BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
     this._sCurrentPlayerKey = null;
 
     // Bind original scroll autoplay
-    $(window).off('scroll.timelineVap').on('scroll.timelineVap', function() {
-        if (!$this.oView.is(':visible')) return;
-        if (!window.requestAnimationFrame) {
-            setTimeout(function() {
-                $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
-            }, 100);
-        } else {
-            window.requestAnimationFrame(function() {
-                $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
-            });
-        }
-    });
+    $(window)
+        .off('scroll.timelineVap')
+        .on('scroll.timelineVap', function() {
+            if (!$this.oView.is(':visible')) return;
+            if (!window.requestAnimationFrame) {
+                setTimeout(function() {
+                    $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
+                }, 100);
+            } else {
+                window.requestAnimationFrame(function() {
+                    $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
+                });
+            }
+        });
 
     // Trigger autoplay immediately on page load
     window.requestAnimationFrame(function() {
@@ -399,7 +402,13 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
     if (bestKey !== this._sCurrentPlayerKey) {
         if (bestKey && window.glBxTimelineVapPlayers[bestKey]) {
             try {
-                window.glBxTimelineVapPlayers[bestKey].play();
+                var player = window.glBxTimelineVapPlayers[bestKey];
+                player.play();
+                if (this._sVideosAutoplay === 'on') {
+                    player.unmute();
+                } else if (this._sVideosAutoplay === 'on_mute') {
+                    player.mute();
+                }
             } catch (e) {
                 // ignore
             }
@@ -412,8 +421,7 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
  * Manually trigger autoplay logic.
  */
 BxTimelineView.prototype.playVideos = function(oView) {
-    if (this._sVideosAutoplay === 'off')
-        return;
+    if (this._sVideosAutoplay === 'off') return;
     this.autoplayVideos(oView, this._fVapOffsetStart, this._fVapOffsetStop);
 };
 
@@ -431,44 +439,49 @@ BxTimelineView.prototype.pauseVideos = function(oView) {
     this._sCurrentPlayerKey = null;
 };
 
+/**
+ * Ensure central player logic respects mute/unmute settings.
+ */
 BxTimelineView.prototype._initCentralVideoObserver = function(aVideoElements) {
     var $this = this;
     var oCurrentlyPlaying = null;
 
-    var observer = new IntersectionObserver(function(entries) {
-        entries.forEach(function(entry) {
-            var oVideoElement = entry.target;
-            var sVideoId = oVideoElement.getAttribute('data-bx-timeline-video-id');
-            var oVideoData = aVideoElements.find(function(v) {
-                return v.id === sVideoId;
-            });
+    var observer = new IntersectionObserver(
+        function(entries) {
+            entries.forEach(function(entry) {
+                var oVideoElement = entry.target;
+                var sVideoId = oVideoElement.getAttribute('data-bx-timeline-video-id');
+                var oVideoData = aVideoElements.find(function(v) {
+                    return v.id === sVideoId;
+                });
 
-            if (oVideoData) {
-                if (entry.isIntersecting) {
-                    if (oCurrentlyPlaying && oCurrentlyPlaying.id!== oVideoData.id) {
-                        oCurrentlyPlaying.player.pause();
-                    }
-                    oVideoData.player.play();
-                    oCurrentlyPlaying = oVideoData;
-                    // Sound autoplay is often restricted by browsers.
-                    // Consider if you need to unmute based on user interaction.
-                    if ($this._sVideosAutoplay == 'on') {
-                        oVideoData.player.unmute();
-                    } else if ($this._sVideosAutoplay == 'on_mute') {
-                        oVideoData.player.mute();
-                    }
-                } else {
-                    if (oCurrentlyPlaying && oCurrentlyPlaying.id === sVideoId) {
-                        oCurrentlyPlaying.player.pause();
-                        oCurrentlyPlaying = null;
+                if (oVideoData) {
+                    if (entry.isIntersecting) {
+                        if (oCurrentlyPlaying && oCurrentlyPlaying.id !== oVideoData.id) {
+                            oCurrentlyPlaying.player.pause();
+                        }
+                        oVideoData.player.play();
+                        oCurrentlyPlaying = oVideoData;
+
+                        if ($this._sVideosAutoplay === 'on') {
+                            oVideoData.player.unmute();
+                        } else if ($this._sVideosAutoplay === 'on_mute') {
+                            oVideoData.player.mute();
+                        }
+                    } else {
+                        if (oCurrentlyPlaying && oCurrentlyPlaying.id === sVideoId) {
+                            oCurrentlyPlaying.player.pause();
+                            oCurrentlyPlaying = null;
+                        }
                     }
                 }
-            }
-        });
-    }, {
-        rootMargin: '-50% 0px -50% 0px', // Observe when the top or bottom edge enters the center
-        threshold: 0
-    });
+            });
+        },
+        {
+            rootMargin: '-50% 0px -50% 0px',
+            threshold: 0,
+        }
+    );
 
     aVideoElements.forEach(function(oVideo) {
         observer.observe(oVideo.element);
