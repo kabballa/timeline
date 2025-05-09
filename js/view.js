@@ -473,6 +473,8 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
  * Manually trigger autoplay logic.
  */
 BxTimelineView.prototype.playVideos = function(oView) {
+    // Log to track when playVideos is called
+    console.log("playVideos called", oView);
     if (this._sVideosAutoplay === 'off') return;
     this.autoplayVideos(oView, this._fVapOffsetStart, this._fVapOffsetStop);
 };
@@ -520,6 +522,8 @@ BxTimelineView.prototype._initCentralVideoObserver = function(aVideoElements) {
                         } else if ($this._sVideosAutoplay === 'on_mute') {
                             oVideoData.player.mute();
                         }
+
+                        $this.playCentralVideo($(entry.target).closest('.timeline-view'));
                     } else {
                         if (oCurrentlyPlaying && oCurrentlyPlaying.id === sVideoId) {
                             oCurrentlyPlaying.player.pause();
@@ -583,7 +587,9 @@ BxTimelineView.prototype.autoplayVideosFallback = function(oView, fOffsetStart, 
 /**
  * Manually trigger central-selection playback.
  */
-BxTimelineView.prototype.playVideos = function(oView) {
+BxTimelineView.prototype.playCentralVideo = function(oView) {
+    // Log to track when playCentralVideo is called
+    console.log("playCentralVideo called", oView);
     var $this = this;
     var sPrefix = oView.attr('id') + '_';
     var oCentralVideo = this._getCentralVideoInView(oView);
