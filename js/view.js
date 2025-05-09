@@ -483,14 +483,32 @@ BxTimelineView.prototype.playVideos = function(oView) {
  * Immediately pause all videos and reset the current key.
  */
 BxTimelineView.prototype.pauseVideos = function(oView) {
-    for (var k in window.glBxTimelineVapPlayers) {
-        try {
-            window.glBxTimelineVapPlayers[k].pause();
-        } catch (e) {
-            // ignore
+    var $this = this;
+
+    if (oView) {
+        // Pause videos in the specified view
+        var sPrefix = oView.attr('id') + '_';
+
+        oView.find('iframe').each(function() {
+            var $iframe = $(this);
+            var sPlayerId = sPrefix + $iframe.attr('id');
+            var oPlayer = window.glBxTimelineVapPlayers[sPlayerId];
+            if (oPlayer) {
+                oPlayer.pause();
+                oPlayer.mute();
+            }
+        });
+    } else {
+        // Pause all videos globally
+        for (var k in window.glBxTimelineVapPlayers) {
+            try {
+                window.glBxTimelineVapPlayers[k].pause();
+            } catch (e) {
+                // Ignore errors
+            }
         }
+        this._sCurrentPlayerKey = null;
     }
-    this._sCurrentPlayerKey = null;
 };
 
 /**
@@ -645,23 +663,6 @@ BxTimelineView.prototype._getCentralVideoInView = function(oView) {
     return oCentralVideo;
 };
 
-/**
- * Immediately pause & mute all videos.
- */
-BxTimelineView.prototype.pauseVideos = function(oView) {
-    var $this = this;
-    var sPrefix = oView.attr('id') + '_';
-
-    oView.find('iframe').each(function() {
-        var $iframe = $(this);
-        var sPlayerId = sPrefix + $iframe.attr('id');
-        var oPlayer = window.glBxTimelineVapPlayers[sPlayerId];
-        if (oPlayer) {
-            oPlayer.pause();
-            oPlayer.mute();
-        }
-    });
-};
 
 BxTimelineView.prototype.reload = function(oSource, onLoad)
 {
