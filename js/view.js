@@ -283,11 +283,15 @@ BxTimelineView.prototype.initInfiniteScroll = function(oParent)
 };
 
 /**
- * Initialize iframe players and enforce single-session playback: only one video plays at a time.
- * Ensures that before any video plays, all others are paused.
+ * Initialize autoplay functionality for video iframes.
+ * Registers iframe players and enforces single-session playback: only one video plays at a time.
+ * Uses IntersectionObserver for visibility detection if available, otherwise falls back to scroll-based logic.
+ * 
+ * @param {jQuery} oParent - jQuery object containing the parent element for video iframes.
  */
 BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
     var $this = this;
+
     if (this._sVideosAutoplay === 'off') return;
 
     // Preserve original initialization
@@ -340,28 +344,78 @@ BxTimelineView.prototype.initVideosAutoplay = function(oParent) {
     // Reset current session tracking
     this._sCurrentPlayerKey = null;
 
-    // Bind original scroll autoplay
-    $(window).off('scroll.timelineVap').on('scroll.timelineVap', function() {
-        if (!$this.oView.is(':visible')) return;
+    // Use IntersectionObserver if available
+    if ('IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(
+            function(entries) {
+                entries.forEach(function(entry) {
+                    var iframe = entry.target;
+                    var key = sPrefix + '_' + iframe.id;
+                    var player = window.glBxTimelineVapPlayers[key];
+
+                    if (!player) return;
+
+                    if (entry.isIntersecting) {
+                        player.play();
+                        if ($this._sVideosAutoplay === 'on') {
+                            player.unmute();
+                        } else if ($this._sVideosAutoplay === 'on_mute') {
+                            player.mute();
+                        }
+                    } else {
+                        player.pause();
+                    }
+                });
+            },
+            {
+                root: null, // Use viewport as root
+                rootMargin: '0px',
+                threshold: 0.5, // Play when 50% of the video is visible
+            }
+        );
+
+        oParent.find('iframe[id]').each(function() {
+            observer.observe(this);
+        });
+    } else {
+        // Fallback to scroll-based autoplay logic
+        $(window)
+            .off('scroll.timelineVap')
+            .on('scroll.timelineVap', function() {
+                if (!$this.oView.is(':visible')) return;
+
+                if (!window.requestAnimationFrame) {
+                    setTimeout(function() {
+                        $this.autoplayVideosFallback($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
+                    }, 100);
+                } else {
+                    window.requestAnimationFrame(function() {
+                        $this.autoplayVideosFallback($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
+                    });
+                }
+            });
+
+        // Trigger fallback autoplay immediately on page load
         if (!window.requestAnimationFrame) {
             setTimeout(function() {
-                $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
+                $this.autoplayVideosFallback($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
             }, 100);
         } else {
             window.requestAnimationFrame(function() {
-                $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
+                $this.autoplayVideosFallback($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
             });
         }
-    });
-
-    // Trigger autoplay immediately on page load
-    window.requestAnimationFrame(function() {
-        $this.autoplayVideos($this.oView, $this._fVapOffsetStart, $this._fVapOffsetStop);
-    });
+    }
 };
 
 /**
- * Autoplay the single most visible video on scroll: pause all others before playing the new one.
+ * Autoplay the single most visible video in the viewport.
+ * Pauses all other videos before playing the one that is most visible. 
+ * This function is triggered on scroll or when the viewport changes.
+ * 
+ * @param {jQuery} oView - jQuery object containing the video iframes.
+ * @param {number} fOffsetStart - Offset from top for start of visible region (as a fraction of window height).
+ * @param {number} fOffsetStop - Offset from bottom for stop of visible region (as a fraction of window height).
  */
 BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetStop) {
     var sPrefix = oView.attr('id') + '_';
@@ -378,19 +432,20 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
         var visBottom = Math.min(bottom, winTop + winH);
         var ratio = Math.max(0, visBottom - visTop) / $f.height();
         var key = sPrefix + this.id;
+
         if (ratio > bestRatio) {
             bestRatio = ratio;
             bestKey = key;
         }
     });
 
-    // Pause all players before playing the new one
+    // Pause all players before playing the most visible video
     for (var k in window.glBxTimelineVapPlayers) {
         if (k !== bestKey) {
             try {
                 window.glBxTimelineVapPlayers[k].pause();
             } catch (e) {
-                // ignore
+                // Ignore errors
             }
         }
     }
@@ -399,9 +454,15 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
     if (bestKey !== this._sCurrentPlayerKey) {
         if (bestKey && window.glBxTimelineVapPlayers[bestKey]) {
             try {
-                window.glBxTimelineVapPlayers[bestKey].play();
+                var player = window.glBxTimelineVapPlayers[bestKey];
+                player.play();
+                if (this._sVideosAutoplay === 'on') {
+                    player.unmute();
+                } else if (this._sVideosAutoplay === 'on_mute') {
+                    player.mute();
+                }
             } catch (e) {
-                // ignore
+                // Ignore errors
             }
         }
         this._sCurrentPlayerKey = bestKey;
@@ -412,8 +473,7 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
  * Manually trigger autoplay logic.
  */
 BxTimelineView.prototype.playVideos = function(oView) {
-    if (this._sVideosAutoplay === 'off')
-        return;
+    if (this._sVideosAutoplay === 'off') return;
     this.autoplayVideos(oView, this._fVapOffsetStart, this._fVapOffsetStop);
 };
 
@@ -431,54 +491,65 @@ BxTimelineView.prototype.pauseVideos = function(oView) {
     this._sCurrentPlayerKey = null;
 };
 
+/**
+ * Ensure central player logic respects mute/unmute settings.
+ */
 BxTimelineView.prototype._initCentralVideoObserver = function(aVideoElements) {
     var $this = this;
     var oCurrentlyPlaying = null;
 
-    var observer = new IntersectionObserver(function(entries) {
-        entries.forEach(function(entry) {
-            var oVideoElement = entry.target;
-            var sVideoId = oVideoElement.getAttribute('data-bx-timeline-video-id');
-            var oVideoData = aVideoElements.find(function(v) {
-                return v.id === sVideoId;
-            });
+    var observer = new IntersectionObserver(
+        function(entries) {
+            entries.forEach(function(entry) {
+                var oVideoElement = entry.target;
+                var sVideoId = oVideoElement.getAttribute('data-bx-timeline-video-id');
+                var oVideoData = aVideoElements.find(function(v) {
+                    return v.id === sVideoId;
+                });
 
-            if (oVideoData) {
-                if (entry.isIntersecting) {
-                    if (oCurrentlyPlaying && oCurrentlyPlaying.id!== oVideoData.id) {
-                        oCurrentlyPlaying.player.pause();
-                    }
-                    oVideoData.player.play();
-                    oCurrentlyPlaying = oVideoData;
-                    // Sound autoplay is often restricted by browsers.
-                    // Consider if you need to unmute based on user interaction.
-                    if ($this._sVideosAutoplay == 'on') {
-                        oVideoData.player.unmute();
-                    } else if ($this._sVideosAutoplay == 'on_mute') {
-                        oVideoData.player.mute();
-                    }
-                } else {
-                    if (oCurrentlyPlaying && oCurrentlyPlaying.id === sVideoId) {
-                        oCurrentlyPlaying.player.pause();
-                        oCurrentlyPlaying = null;
+                if (oVideoData) {
+                    if (entry.isIntersecting) {
+                        if (oCurrentlyPlaying && oCurrentlyPlaying.id !== oVideoData.id) {
+                            oCurrentlyPlaying.player.pause();
+                        }
+                        oVideoData.player.play();
+                        oCurrentlyPlaying = oVideoData;
+
+                        if ($this._sVideosAutoplay === 'on') {
+                            oVideoData.player.unmute();
+                        } else if ($this._sVideosAutoplay === 'on_mute') {
+                            oVideoData.player.mute();
+                        }
+                    } else {
+                        if (oCurrentlyPlaying && oCurrentlyPlaying.id === sVideoId) {
+                            oCurrentlyPlaying.player.pause();
+                            oCurrentlyPlaying = null;
+                        }
                     }
                 }
-            }
-        });
-    }, {
-        rootMargin: '-50% 0px -50% 0px', // Observe when the top or bottom edge enters the center
-        threshold: 0
-    });
+            });
+        },
+        {
+            rootMargin: '-50% 0px -50% 0px',
+            threshold: 0,
+        }
+    );
 
     aVideoElements.forEach(function(oVideo) {
         observer.observe(oVideo.element);
     });
 };
 
+
 /**
- * Fallback scroll-based autoplay: preserves original behavior.
+ * Fallback autoplay logic.
+ * If IntersectionObserver is not available or disabled, this function plays the video closest to the center of the viewport.
+ * 
+ * @param {jQuery} oView - jQuery object containing the video iframes.
+ * @param {number} fOffsetStart - Offset from top for start of visible region (as a fraction of window height).
+ * @param {number} fOffsetStop - Offset from bottom for stop of visible region (as a fraction of window height).
  */
-BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetStop) {
+BxTimelineView.prototype.autoplayVideosFallback = function(oView, fOffsetStart, fOffsetStop) {
     var $this = this;
 
     var oItems = oView.find('.' + this.sClassItem);
@@ -497,7 +568,10 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
             var iFrameBottom = iFrameTop + oFrame.height();
             var iWindowTop = $(window).scrollTop();
             var iWindowHeight = $(window).height();
-            if (iFrameTop <= iWindowTop + iWindowHeight * fOffsetStart && iFrameBottom >= iWindowTop + iWindowHeight * fOffsetStop) {
+            if (
+                iFrameTop <= iWindowTop + iWindowHeight * fOffsetStart &&
+                iFrameBottom >= iWindowTop + iWindowHeight * fOffsetStop
+            ) {
                 oPlayer.play();
             } else {
                 oPlayer.pause();
