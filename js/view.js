@@ -272,7 +272,8 @@ BxTimelineView.prototype.initInfiniteScroll = function(oParent)
     if(!this._bInfScroll || !this._bEventsToLoad)
         return;
 
-    $(window).bind('scroll', function(oEvent) {
+    // Debounced scroll handler
+    var onScroll = debounce(function(oEvent) {
         if(!$this.oView.is(':visible'))
             return;
 
@@ -308,7 +309,9 @@ BxTimelineView.prototype.initInfiniteScroll = function(oParent)
             $this._iInfScrollPreloads += 1;
             $this._bInfScrollBusy = false;
         });
-    });
+    }, 100);
+
+    $(window).bind('scroll', onScroll);
 };
 
 /**
@@ -1880,3 +1883,13 @@ BxTimelineView.prototype._onMarkPost = function(oData, sAction)
             });
         });
 };
+
+// Utility: Debounce function
+function debounce(func, wait) {
+    let timeout;
+    return function() {
+        const context = this, args = arguments;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), wait);
+    };
+}
