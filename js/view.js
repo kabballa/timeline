@@ -8,6 +8,11 @@
  * @{
  */
 
+/**
+ * BxTimelineView constructor.
+ * Initializes the Timeline View object with provided options.
+ * @param {object} oOptions - Configuration options for the Timeline View.
+ */
 function BxTimelineView(oOptions) {
     BxTimelineMain.call(this, oOptions);
 
@@ -69,6 +74,10 @@ function BxTimelineView(oOptions) {
 BxTimelineView.prototype = Object.create(BxTimelineMain.prototype);
 BxTimelineView.prototype.constructor = BxTimelineView;
 
+/**
+ * Initializes the Timeline View and its components.
+ * @param {boolean} bForceInit - Whether to force re-initialization.
+ */
 BxTimelineView.prototype.init = function(bForceInit)
 {
     var $this = this;
@@ -172,6 +181,9 @@ BxTimelineView.prototype.init = function(bForceInit)
     this.initFlickity(this.oView);
 };
 
+/**
+ * Initializes the current view and sets view type flags.
+ */
 BxTimelineView.prototype.initView = function() 
 {   
     BxTimelineMain.prototype.initView.call(this);
@@ -188,6 +200,11 @@ BxTimelineView.prototype.initView = function()
         this.bViewItem = true;
 };
 
+/**
+ * Initializes the "See More" functionality for overflowing content.
+ * @param {jQuery} oParent - Parent element to search for content.
+ * @param {boolean} bInItems - Whether to search inside items.
+ */
 BxTimelineView.prototype.initSeeMore = function(oParent, bInItems)
 {
     var $this = this;
@@ -208,6 +225,10 @@ BxTimelineView.prototype.initSeeMore = function(oParent, bInItems)
         }, 4000);
 };
 
+/**
+ * Loads the "Jump To" navigation for the timeline.
+ * @param {jQuery} oParent - Parent element to append the jump-to menu.
+ */
 BxTimelineView.prototype.initJumpTo = function(oParent)
 {
     var oJumpTo = $(oParent).find('.' + this.sClassJumpTo);
@@ -228,6 +249,10 @@ BxTimelineView.prototype.initJumpTo = function(oParent)
     );
 };
 
+/**
+ * Callback for handling the loaded "Jump To" content.
+ * @param {object} oData - Data containing the jump-to content.
+ */
 BxTimelineView.prototype.onGetJumpTo = function(oData)
 {
     if(!oData.holder || oData.content == undefined)
@@ -236,6 +261,10 @@ BxTimelineView.prototype.onGetJumpTo = function(oData)
     $(oData.holder).html(oData.content);
 };
 
+/**
+ * Initializes infinite scroll for loading more timeline events.
+ * @param {jQuery} oParent - Parent element containing timeline items.
+ */
 BxTimelineView.prototype.initInfiniteScroll = function(oParent)
 {
     var $this = this;
@@ -631,6 +660,11 @@ BxTimelineView.prototype.playCentralVideo = function(oView) {
     }
 };
 
+/**
+ * Get the video element closest to the center of the viewport in the given view.
+ * @param {jQuery} oView - jQuery object containing the video iframes.
+ * @returns {object|null} - Object with id and player, or null if none found.
+ */
 BxTimelineView.prototype._getCentralVideoInView = function(oView) {
     var $this = this;
     var oCentralVideo = null;
@@ -663,7 +697,11 @@ BxTimelineView.prototype._getCentralVideoInView = function(oView) {
     return oCentralVideo;
 };
 
-
+/**
+ * Reloads the timeline view, fetching posts again.
+ * @param {object} oSource - Source element for loading indication.
+ * @param {function} onLoad - Callback to execute after reload.
+ */
 BxTimelineView.prototype.reload = function(oSource, onLoad)
 {
     var $this = this;
@@ -681,6 +719,12 @@ BxTimelineView.prototype.reload = function(oSource, onLoad)
     });
 };
 
+/**
+ * Changes the current view type (e.g., public, personal).
+ * @param {object} oLink - Link element triggering the change.
+ * @param {string} sType - Type of view to switch to.
+ * @param {object} oRequestParams - Additional request parameters.
+ */
 BxTimelineView.prototype.changeView = function(oLink, sType, oRequestParams)
 {
     var $this = this;
@@ -755,6 +799,13 @@ BxTimelineView.prototype.changeView = function(oLink, sType, oRequestParams)
     );
 };
 
+/**
+ * Changes the current page in the timeline.
+ * @param {object} oLink - Link element triggering the change.
+ * @param {number} iStart - Start index for pagination.
+ * @param {number} iPerPage - Number of items per page.
+ * @param {function} onLoad - Callback to execute after page change.
+ */
 BxTimelineView.prototype.changePage = function(oLink, iStart, iPerPage, onLoad)
 {
     if(this._bInfScroll)
@@ -763,6 +814,10 @@ BxTimelineView.prototype.changePage = function(oLink, iStart, iPerPage, onLoad)
     this._getPage(oLink, iStart, iPerPage, onLoad);
 };
 
+/**
+ * Changes the filter applied to the timeline.
+ * @param {object} oLink - Link element triggering the filter change.
+ */
 BxTimelineView.prototype.changeFilter = function(oLink)
 {
     var sId = $(oLink).attr('id');
@@ -775,6 +830,11 @@ BxTimelineView.prototype.changeFilter = function(oLink)
     this._getPosts(oLink);
 };
 
+/**
+ * Changes the timeline to a specific date.
+ * @param {object} oLink - Link element triggering the change.
+ * @param {string} sDate - Date string to filter timeline.
+ */
 BxTimelineView.prototype.changeTimeline = function(oLink, sDate)
 {
     var $this = this;
@@ -806,6 +866,9 @@ BxTimelineView.prototype.changeTimeline = function(oLink, sDate)
     });
 };
 
+/**
+ * Initializes the calendar date picker for the timeline.
+ */
 BxTimelineView.prototype.initCalendar = function()
 {
     var $this = this;
@@ -831,11 +894,17 @@ BxTimelineView.prototype.initCalendar = function()
 /**
  * Isn't needed for now, because 'flatpickr' picker is used.
  * Saved for possible future usage.
+ * Shows the calendar popup (currently not used).
+ * @param {object} oLink - Link element triggering the calendar.
  */
 BxTimelineView.prototype.showCalendar = function(oLink)
 {
 };
 
+/**
+ * Expands overflowing content to show more text.
+ * @param {object} oLink - Link element triggering the action.
+ */
 BxTimelineView.prototype.showMore = function(oLink)
 {
     var sClassOverflow = this.sSP + '-overflow';
@@ -847,6 +916,14 @@ BxTimelineView.prototype.showMore = function(oLink)
         this.reloadMasonry();
 };
 
+/**
+ * Shows a timeline item in a popup.
+ * @param {object} oLink - Link element triggering the action.
+ * @param {number} iId - Item ID to show.
+ * @param {string} sMode - Display mode.
+ * @param {object} oParams - Additional parameters.
+ * @returns {boolean} - Always returns false.
+ */
 BxTimelineView.prototype.showItem = function(oLink, iId, sMode, oParams)
 {
     var $this = this;
@@ -877,6 +954,12 @@ BxTimelineView.prototype.showItem = function(oLink, iId, sMode, oParams)
     return false;
 };
 
+/**
+ * Loads and toggles comments for a timeline item.
+ * @param {object} oLink - Link element triggering the action.
+ * @param {string} sSystem - Comment system identifier.
+ * @param {number} iId - Item ID for comments.
+ */
 BxTimelineView.prototype.commentItem = function(oLink, sSystem, iId)
 {
     var $this = this;
@@ -911,26 +994,52 @@ BxTimelineView.prototype.commentItem = function(oLink, sSystem, iId)
     );
 };
 
+/**
+ * Pins a timeline post.
+ * @param {object} oLink - Link element triggering the action.
+ * @param {number} iId - Item ID to pin.
+ * @param {number} iWay - Pin direction or state.
+ */
 BxTimelineView.prototype.pinPost = function(oLink, iId, iWay)
 {
     this._markPost(oLink, iId, iWay, 'pin');
 };
 
+/**
+ * Callback after pinning a post.
+ * @param {object} oData - Data returned from the server.
+ */
 BxTimelineView.prototype.onPinPost = function(oData)
 {
     this._onMarkPost(oData, 'pin');
 };
 
+/**
+ * Sticks a timeline post.
+ * @param {object} oLink - Link element triggering the action.
+ * @param {number} iId - Item ID to stick.
+ * @param {number} iWay - Stick direction or state.
+ */
 BxTimelineView.prototype.stickPost = function(oLink, iId, iWay)
 {
     this._markPost(oLink, iId, iWay, 'stick');
 };
 
+/**
+ * Callback after sticking a post.
+ * @param {object} oData - Data returned from the server.
+ */
 BxTimelineView.prototype.onStickPost = function(oData)
 {
     this._onMarkPost(oData, 'stick');
 };
 
+/**
+ * Promotes a timeline post.
+ * @param {object} oLink - Link element triggering the action.
+ * @param {number} iId - Item ID to promote.
+ * @param {number} iWay - Promotion direction or state.
+ */
 BxTimelineView.prototype.promotePost = function(oLink, iId, iWay)
 {
     var $this = this;
@@ -1080,6 +1189,11 @@ BxTimelineView.prototype.muteAuthor = function(oLink, iId)
     );
 };
 
+/**
+ * Initializes the form for editing a timeline post.
+ * @param {string} sFormId - The ID of the form element.
+ * @param {number} iEventId - The ID of the event being edited.
+ */
 BxTimelineView.prototype.initFormEdit = function(sFormId, iEventId)
 {
     var $this = this;
@@ -1107,11 +1221,20 @@ BxTimelineView.prototype.initFormEdit = function(sFormId, iEventId)
     oForm.bxConvertEmbeds();
 };
 
+/**
+ * Callback before submitting the edit form.
+ * @param {object} oForm - The form element being submitted.
+ */
 BxTimelineView.prototype.beforeFormEditSubmit = function(oForm)
 {
     this.loadingInButton($(oForm).children().find(':submit'), true);
 };
 
+/**
+ * Callback after submitting the edit form.
+ * @param {object} oForm - The form element that was submitted.
+ * @param {object} oData - Data returned from the server.
+ */
 BxTimelineView.prototype.afterFormEditSubmit = function (oForm, oData)
 {
     var $this = this;
@@ -1139,6 +1262,11 @@ BxTimelineView.prototype.afterFormEditSubmit = function (oForm, oData)
         fContinue();
 };
 
+/**
+ * Edits a timeline post.
+ * @param {object} oLink - The link element triggering the edit.
+ * @param {number} iId - The ID of the post to edit.
+ */
 BxTimelineView.prototype.editPost = function(oLink, iId)
 {
     var $this = this;
@@ -1171,6 +1299,10 @@ BxTimelineView.prototype.editPost = function(oLink, iId)
     );
 };
 
+/**
+ * Callback after loading the edit form.
+ * @param {object} oData - Data returned from the server.
+ */
 BxTimelineView.prototype.onEditPost = function(oData)
 {
     var $this = this;
@@ -1191,11 +1323,21 @@ BxTimelineView.prototype.onEditPost = function(oData)
     }
 };
 
+/**
+ * Cancels editing a post and restores the previous content.
+ * @param {object} oButton - The button element triggering the cancel.
+ * @param {number} iId - The ID of the post to cancel editing for.
+ */
 BxTimelineView.prototype.editPostCancel = function(oButton, iId)
 {
     this.editPost(oButton, iId);
 };
 
+/**
+ * Deletes a timeline post after confirmation.
+ * @param {object} oLink - The link element triggering the delete.
+ * @param {number} iId - The ID of the post to delete.
+ */
 BxTimelineView.prototype.deletePost = function(oLink, iId)
 {
     var $this = this;
@@ -1219,6 +1361,11 @@ BxTimelineView.prototype.deletePost = function(oLink, iId)
     });
 };
 
+/**
+ * Callback after deleting a post.
+ * Handles UI updates for different views after a post is deleted.
+ * @param {object} oData - Data returned from the server.
+ */
 BxTimelineView.prototype.onDeletePost = function(oData)
 {
     var $this = this;
@@ -1262,6 +1409,11 @@ BxTimelineView.prototype.onDeletePost = function(oData)
         document.location = this._sReferrer;
 };
 
+/**
+ * Callback for connect action, removes the element from the DOM.
+ * @param {object} eElement - The element to remove.
+ * @param {object} oData - Data returned from the server.
+ */
 BxTimelineView.prototype.onConnect = function(eElement, oData)
 {
     $(eElement).remove();
@@ -1270,6 +1422,14 @@ BxTimelineView.prototype.onConnect = function(eElement, oData)
 /*----------------------------*/
 /*--- Live Updates methods ---*/
 /*----------------------------*/
+
+/**
+ * Navigates to a specific timeline item and highlights it.
+ * @param {object} oLink - The link element triggering the action.
+ * @param {string} sGoToId - The ID to scroll to.
+ * @param {string} sBlinkIds - IDs to highlight.
+ * @param {function} onLoad - Callback after navigation.
+ */
 BxTimelineView.prototype.goTo = function(oLink, sGoToId, sBlinkIds, onLoad)
 {
     var $this = this;
@@ -1288,6 +1448,13 @@ BxTimelineView.prototype.goTo = function(oLink, sGoToId, sBlinkIds, onLoad)
     });
 };
 
+/**
+ * Navigates to a specific timeline item using a button and highlights it.
+ * @param {object} oLink - The button element triggering the action.
+ * @param {string} sGoToId - The ID to scroll to.
+ * @param {string} sBlinkIds - IDs to highlight.
+ * @param {function} onLoad - Callback after navigation.
+ */
 BxTimelineView.prototype.goToBtn = function(oLink, sGoToId, sBlinkIds, onLoad)
 {
     var $this = this;
@@ -1310,7 +1477,8 @@ BxTimelineView.prototype.goToBtn = function(oLink, sGoToId, sBlinkIds, onLoad)
 /*
  * Show only one live update notification for all new events.
  * 
- * Note. oData.count_old and oData.count_new are also available and can be checked or used in notification popup.  
+ * @param {object} oData - Data containing the notification code.
+ * Note. oData.count_old and oData.count_new are also available and can be checked or used in notification popup.
  */
 BxTimelineView.prototype.showLiveUpdate = function(oData)
 {
@@ -1330,7 +1498,7 @@ BxTimelineView.prototype.showLiveUpdate = function(oData)
  * Note. This way to display live update notifications isn't used for now. 
  * See BxTimelineView::showLiveUpdate method instead.
  * 
- * Note. oData.count_old and oData.count_new are also available and can be checked or used in notification popup.  
+ * Note. oData.count_old and oData.count_new are also available and can be checked or used in notification popup.
  */
 BxTimelineView.prototype.showLiveUpdates = function(oData)
 {
@@ -1364,6 +1532,10 @@ BxTimelineView.prototype.showLiveUpdates = function(oData)
     });
 };
 
+/**
+ * Shows the previous live update notification in the chain.
+ * @param {object} oLink - The link element triggering the action.
+ */
 BxTimelineView.prototype.previousLiveUpdate = function(oLink)
 {
     var fPrevious = function() {
@@ -1375,11 +1547,20 @@ BxTimelineView.prototype.previousLiveUpdate = function(oLink)
         fPrevious();
 };
 
+/**
+ * Hides the current live update notification popup.
+ * @param {object} oLink - The link element triggering the action.
+ */
 BxTimelineView.prototype.hideLiveUpdate = function(oLink)
 {
     $(oLink).parents('.bx-popup-applied:visible:first').dolPopupHide();
 };
 
+/**
+ * Resumes live updates if they are paused.
+ * @param {function} onLoad - Callback after resuming.
+ * @returns {boolean} - True if resumed, false otherwise.
+ */
 BxTimelineView.prototype.resumeLiveUpdates = function(onLoad)
 {
     if(!this._bLiveUpdatePaused)
@@ -1396,6 +1577,11 @@ BxTimelineView.prototype.resumeLiveUpdates = function(onLoad)
     return true;
 };
 
+/**
+ * Pauses live updates if they are running.
+ * @param {function} onLoad - Callback after pausing.
+ * @returns {boolean} - True if paused, false otherwise.
+ */
 BxTimelineView.prototype.pauseLiveUpdates = function(onLoad)
 {
     if(this._bLiveUpdatePaused)
@@ -1412,6 +1598,11 @@ BxTimelineView.prototype.pauseLiveUpdates = function(onLoad)
     return true;
 };
 
+/**
+ * Sends a request to change the live update state (pause/resume).
+ * @param {string} sAction - The action to perform.
+ * @param {function} onLoad - Callback after the request.
+ */
 BxTimelineView.prototype.changeLiveUpdates = function(sAction, onLoad)
 {
     var $this = this;
@@ -1428,6 +1619,11 @@ BxTimelineView.prototype.changeLiveUpdates = function(sAction, onLoad)
     );
 };
 
+/**
+ * Copies a link to the clipboard and hides any visible popups.
+ * @param {object} oElement - The element triggering the copy.
+ * @param {string} sLink - The link to copy.
+ */
 BxTimelineView.prototype.copyToClipboard = function(oElement, sLink)
 {
     bx_copy_to_clipboard(sLink, function() {
@@ -1435,6 +1631,10 @@ BxTimelineView.prototype.copyToClipboard = function(oElement, sLink)
     });
 };
 
+/**
+ * Animates and removes the highlight from blinking items.
+ * @param {jQuery} oParent - The parent element containing items to blink.
+ */
 BxTimelineView.prototype.blink = function(oParent)
 {
     oParent.find('.' + this.sClassBlink + '-plate:visible').animate({
@@ -1450,6 +1650,14 @@ BxTimelineView.prototype.blink = function(oParent)
 /*------------------------------------*/
 /*--- Internal (protected) methods ---*/
 /*------------------------------------*/
+
+/**
+ * Loads a page of timeline posts and appends or processes them in the view.
+ * @param {object} oElement - The element triggering the load.
+ * @param {number} iStart - Start index for pagination.
+ * @param {number} iPerPage - Number of items per page.
+ * @param {function} onLoad - Callback after loading.
+ */
 BxTimelineView.prototype._getPage = function(oElement, iStart, iPerPage, onLoad)
 {
     var $this = this;
@@ -1509,6 +1717,11 @@ BxTimelineView.prototype._getPage = function(oElement, iStart, iPerPage, onLoad)
     });
 };
 
+/**
+ * Loads timeline posts from the server.
+ * @param {object} oElement - The element triggering the load.
+ * @param {function} onComplete - Callback after loading.
+ */
 BxTimelineView.prototype._getPosts = function(oElement, onComplete)
 {
     var $this = this;
@@ -1530,6 +1743,10 @@ BxTimelineView.prototype._getPosts = function(oElement, onComplete)
     );
 };
 
+/**
+ * Callback after loading posts, updates the UI accordingly.
+ * @param {object} oData - Data returned from the server.
+ */
 BxTimelineView.prototype._onGetPosts = function(oData)
 {
     var $this = this;
@@ -1584,6 +1801,10 @@ BxTimelineView.prototype._onGetPosts = function(oData)
     }
 };
 
+/**
+ * Callback after loading a single post, updates the UI accordingly.
+ * @param {object} oData - Data returned from the server.
+ */
 BxTimelineView.prototype._onGetPost = function(oData)
 {
     if(!$.trim(oData.item).length) 
@@ -1599,6 +1820,13 @@ BxTimelineView.prototype._onGetPost = function(oData)
     this.initFlickity(this.oView);
 };
 
+/**
+ * Sends a request to mark a post (pin, stick, etc.).
+ * @param {object} oLink - The link element triggering the action.
+ * @param {number} iId - The ID of the post.
+ * @param {number} iWay - The direction or state.
+ * @param {string} sAction - The action to perform.
+ */
 BxTimelineView.prototype._markPost = function(oLink, iId, iWay, sAction)
 {
     var oData = this._getDefaultData();
@@ -1622,6 +1850,11 @@ BxTimelineView.prototype._markPost = function(oLink, iId, iWay, sAction)
     );
 };
 
+/**
+ * Callback after marking a post, updates the UI accordingly.
+ * @param {object} oData - Data returned from the server.
+ * @param {string} sAction - The action performed.
+ */
 BxTimelineView.prototype._onMarkPost = function(oData, sAction)
 {
     var $this = this;
