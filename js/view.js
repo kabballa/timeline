@@ -475,7 +475,14 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
     for (var k in window.glBxTimelineVapPlayers) {
         if (k !== bestKey) {
             try {
-                window.glBxTimelineVapPlayers[k].pause();
+                // Only pause if not already paused (if supported)
+                if (window.glBxTimelineVapPlayers[k].getPaused) {
+                    window.glBxTimelineVapPlayers[k].getPaused(function(paused) {
+                        if (!paused) window.glBxTimelineVapPlayers[k].pause();
+                    });
+                } else {
+                    window.glBxTimelineVapPlayers[k].pause();
+                }
             } catch (e) {
                 // Ignore errors
             }
@@ -487,11 +494,35 @@ BxTimelineView.prototype.autoplayVideos = function(oView, fOffsetStart, fOffsetS
         if (bestKey && window.glBxTimelineVapPlayers[bestKey]) {
             try {
                 var player = window.glBxTimelineVapPlayers[bestKey];
-                player.play();
-                if (this._sVideosAutoplay === 'on') {
-                    player.unmute();
-                } else if (this._sVideosAutoplay === 'on_mute') {
-                    player.mute();
+                // Only play if currently paused (if supported)
+                if (player.getPaused) {
+                    player.getPaused(function(paused) {
+                        if (paused) {
+                            var playPromise = player.play();
+                            if (playPromise && typeof playPromise.catch === 'function') {
+                                playPromise.catch(function(e) {
+                                    // Suppress AbortError
+                                });
+                            }
+                            if (this._sVideosAutoplay === 'on') {
+                                player.unmute();
+                            } else if (this._sVideosAutoplay === 'on_mute') {
+                                player.mute();
+                            }
+                        }
+                    }.bind(this));
+                } else {
+                    var playPromise = player.play();
+                    if (playPromise && typeof playPromise.catch === 'function') {
+                        playPromise.catch(function(e) {
+                            // Suppress AbortError
+                        });
+                    }
+                    if (this._sVideosAutoplay === 'on') {
+                        player.unmute();
+                    } else if (this._sVideosAutoplay === 'on_mute') {
+                        player.mute();
+                    }
                 }
             } catch (e) {
                 // Ignore errors
